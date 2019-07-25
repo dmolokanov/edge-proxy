@@ -1,0 +1,13 @@
+[package]
+name = "edge-proxy"
+version = "0.1.0"
+authors = ["dmolokanov <dmolokanov@users.noreply.github.com>"]
+edition = "2018"
+
+[dependencies]
+hyper = "0.12"
+hyper-tls = "0.3"
+tokio = "0.1"
+native-tls = "0.2.3"
+log = "0.4.7"
+env_logger = "0.6.2"
