@@ -13,11 +13,11 @@ fn main() {
 
     let addr = ([127, 0, 0, 1], 3001).into();
 
-    let mut f = File::open("trust_bundle").unwrap();
+    let mut f = File::open("trust_bundle.pem").unwrap();
     let mut buffer = vec![];
     f.read_to_end(&mut buffer).unwrap();
 
-    let cert = Certificate::from_der(buffer.as_slice()).unwrap();
+    let cert = Certificate::from_pem(buffer.as_slice()).unwrap();
 
     let mut http = HttpConnector::new(4);
     http.enforce_http(false);
@@ -35,19 +35,22 @@ fn main() {
         let client = client_main.clone();
 
         service_fn(move |mut req| {
+            let authority = match req.uri().port_u16() {
+                Some(port) => format!("iotedged:{}", port),
+                None => "iotedged".to_string(),
+            };
+
             let uri = Uri::builder()
                 .scheme("https")
-                .authority("iotedged:35001")
+                .authority(&*authority)
                 .path_and_query(req.uri().path_and_query().map(|x| x.as_str()).unwrap_or(""))
                 .build()
                 .unwrap();
 
             *req.uri_mut() = uri;
 
-            client.request(req)
-
-//            client
-//                .get("https://hyper.rs".parse().unwrap())
+            client
+                .request(req)
                 .map(|res| {
                     info!("{}", res.status());
                     res
