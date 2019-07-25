@@ -1,6 +1,6 @@
 use hyper::client::HttpConnector;
 use hyper::service::service_fn;
-use hyper::{rt, Client, Server};
+use hyper::{rt, Client, Server, Uri};
 use hyper_tls::HttpsConnector;
 use log::*;
 use native_tls::{Certificate, TlsConnector};
@@ -12,27 +12,42 @@ fn main() {
     env_logger::init();
 
     let addr = ([127, 0, 0, 1], 3001).into();
+
+    let mut f = File::open("trust_bundle").unwrap();
+    let mut buffer = vec![];
+    f.read_to_end(&mut buffer).unwrap();
+
+    let cert = Certificate::from_der(buffer.as_slice()).unwrap();
+
+    let mut http = HttpConnector::new(4);
+    http.enforce_http(false);
+
+    let tls = TlsConnector::builder()
+        .add_root_certificate(cert)
+        .build()
+        .unwrap();
+
+    let https = HttpsConnector::from((http, tls));
+
+    let client_main = Client::builder().build::<_, hyper::Body>(https);
+
     let new_service = move || {
-        service_fn(move |req| {
-            let mut f = File::open("device.cert").unwrap();
-            let mut buffer = vec![];
-            f.read_to_end(&mut buffer).unwrap();
+        let client = client_main.clone();
 
-            let cert = Certificate::from_der(buffer.as_slice()).unwrap();
-
-            let mut http = HttpConnector::new(4);
-            http.enforce_http(false);
-
-            let tls = TlsConnector::builder()
-                .add_root_certificate(cert)
+        service_fn(move |mut req| {
+            let uri = Uri::builder()
+                .scheme("https")
+                .authority("iotedged:35001")
+                .path_and_query(req.uri().path_and_query().map(|x| x.as_str()).unwrap_or(""))
                 .build()
                 .unwrap();
 
-            let https = HttpsConnector::from((http, tls));
+            *req.uri_mut() = uri;
 
-            let client = Client::builder().build::<_, hyper::Body>(https);
-            client
-                .get("https://hyper.rs".parse().unwrap())
+            client.request(req)
+
+//            client
+//                .get("https://hyper.rs".parse().unwrap())
                 .map(|res| {
                     info!("{}", res.status());
                     res
