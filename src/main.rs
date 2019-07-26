@@ -42,7 +42,7 @@ fn main() {
 
             let uri = Uri::builder()
                 .scheme("https")
-                .authority(&*authority)
+                .authority(authority.as_str())
                 .path_and_query(req.uri().path_and_query().map(|x| x.as_str()).unwrap_or(""))
                 .build()
                 .unwrap();
