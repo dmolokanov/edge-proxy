@@ -1,5 +1,6 @@
 [package]
 name = "edge-proxy"
+description = "edge-proxy is a HTTPS proxy server to organize secure edge modules communication"
 version = "0.1.0"
 authors = ["dmolokanov <dmolokanov@users.noreply.github.com>"]
 publish = false
@@ -9,4 +10,9 @@ edition = "2018"
 failure = "0.1.5"
 env_logger = "0.6.2"
 log = "0.4.7"
+clap = "2.33.0"
+config = { version = "0.9.3", features = ["yaml"] }
+serde = { version = "1.0.97", features = ["derive"] }
+url = "1.7"
+url_serde = "0.2.0"
 

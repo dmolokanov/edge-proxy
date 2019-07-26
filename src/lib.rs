@@ -1,4 +1,7 @@
 pub mod app;
 mod error;
+pub mod logging;
+mod settings;
 
-pub use error::{ErrorKind, Error};
+pub use error::{Error, ErrorKind};
+pub use settings::Settings;

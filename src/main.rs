@@ -1,19 +1,15 @@
-use log::error;
-
-use edge_proxy::app::Settings;
 use edge_proxy::{app, Error};
+use edge_proxy::{logging, Settings};
 
 fn main() {
-    env_logger::init();
-
     if let Err(e) = run() {
-        error!("{}", e);
+        logging::failure(&e);
         std::process::exit(1)
     }
 }
 
 fn run() -> Result<(), Error> {
-    let settings = app::init();
+    let settings = app::init()?;
 
     let main = Main::new(settings);
     main.run_until()?;

@@ -10,6 +10,9 @@ pub struct Error {
 
 #[derive(Debug, Fail)]
 pub enum ErrorKind {
+    #[fail(display = "Could not load settings")]
+    LoadSettings,
+
     #[fail(display = "Error")]
     Generic,
 }
@@ -33,5 +36,11 @@ impl Fail for Error {
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Display::fmt(&self.inner, f)
+    }
+}
+
+impl From<Context<ErrorKind>> for Error {
+    fn from(inner: Context<ErrorKind>) -> Self {
+        Error { inner }
     }
 }
