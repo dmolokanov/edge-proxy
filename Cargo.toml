@@ -15,4 +15,7 @@ config = { version = "0.9.3", features = ["yaml"] }
 serde = { version = "1.0.97", features = ["derive"] }
 url = "1.7"
 url_serde = "0.2.0"
+tokio = "0.1.22"
+hyper = "0.12.33"
+futures = "0.1.28"
 

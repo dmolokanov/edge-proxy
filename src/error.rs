@@ -13,6 +13,15 @@ pub enum ErrorKind {
     #[fail(display = "Could not load settings")]
     LoadSettings,
 
+    #[fail(display = "Could not initialize tokio runtime")]
+    Tokio,
+
+    #[fail(display = "Invalid URL {:?}", _0)]
+    InvalidUrl(String),
+
+    #[fail(display = "Invalid URL {:?}: {}", _0, _1)]
+    InvalidUrlWithReason(String, String),
+
     #[fail(display = "Error")]
     Generic,
 }
@@ -22,6 +31,10 @@ impl Error {
         self.inner.get_context()
     }
 }
+//
+//impl std::error::Error for Error{
+//
+//}
 
 impl Fail for Error {
     fn cause(&self) -> Option<&dyn Fail> {
@@ -42,5 +55,13 @@ impl Display for Error {
 impl From<Context<ErrorKind>> for Error {
     fn from(inner: Context<ErrorKind>) -> Self {
         Error { inner }
+    }
+}
+
+impl From<ErrorKind> for Error {
+    fn from(kind: ErrorKind) -> Self {
+        Error {
+            inner: Context::new(kind),
+        }
     }
 }
