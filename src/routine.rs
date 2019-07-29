@@ -19,13 +19,13 @@ impl Routine {
     }
 
     pub fn run_until(&self) -> Result<(), Error> {
-        let mut runtime = tokio::runtime::Runtime::new().context(ErrorKind::Tokio)?;
+        let mut runtime = Runtime::new().context(ErrorKind::Tokio)?;
 
-        let services = self
-            .settings
-            .services()
-            .iter()
-            .map(|settings| start_proxy(&mut runtime, settings).unwrap());
+        let services = self.settings.services().to_vec();
+
+        let services = services
+            .into_iter()
+            .map(|settings| start_proxy(&settings).unwrap());
 
         runtime.block_on(join_all(services));
 
@@ -35,10 +35,7 @@ impl Routine {
     }
 }
 
-fn start_proxy(
-    runtime: &mut Runtime,
-    settings: &ServiceSettings,
-) -> Result<Server<AddrIncoming, ProxyService>, Error> {
+fn start_proxy(settings: &ServiceSettings) -> Result<Server<AddrIncoming, ProxyService>, Error> {
     info!(
         "Starting proxy server {} {}",
         settings.name(),
