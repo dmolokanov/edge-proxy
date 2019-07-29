@@ -22,6 +22,9 @@ pub enum ErrorKind {
     #[fail(display = "Invalid URL {:?}: {}", _0, _1)]
     InvalidUrlWithReason(String, String),
 
+    #[fail(display = "HTTP connection error")]
+    Hyper,
+
     #[fail(display = "Error")]
     Generic,
 }
@@ -31,10 +34,6 @@ impl Error {
         self.inner.get_context()
     }
 }
-//
-//impl std::error::Error for Error{
-//
-//}
 
 impl Fail for Error {
     fn cause(&self) -> Option<&dyn Fail> {

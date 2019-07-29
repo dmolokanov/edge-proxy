@@ -1,8 +1,8 @@
 use std::net::ToSocketAddrs;
 
-use failure::ResultExt;
+use failure::{Fail, ResultExt};
 use futures::future::join_all;
-use hyper::server::conn::AddrIncoming;
+use futures::{Future, IntoFuture};
 use hyper::Server;
 use log::info;
 use tokio::runtime::Runtime;
@@ -23,11 +23,9 @@ impl Routine {
 
         let services = self.settings.services().to_vec();
 
-        let services = services
-            .into_iter()
-            .map(|settings| start_proxy(&settings).unwrap());
+        let services = services.into_iter().map(|settings| start_proxy(&settings));
 
-        runtime.block_on(join_all(services));
+        runtime.block_on(join_all(services))?;
 
         info!("Shutdown completed");
 
@@ -35,25 +33,36 @@ impl Routine {
     }
 }
 
-fn start_proxy(settings: &ServiceSettings) -> Result<Server<AddrIncoming, ProxyService>, Error> {
+fn start_proxy(settings: &ServiceSettings) -> impl Future<Item = (), Error = Error> {
     info!(
         "Starting proxy server {} {}",
         settings.name(),
         settings.entrypoint()
     );
 
+    let name = settings.name().to_string();
     let url = settings.entrypoint().clone();
-    let addr = url
-        .to_socket_addrs()
-        .context(ErrorKind::InvalidUrl(url.to_string()))?
-        .next()
-        .ok_or_else(|| {
-            ErrorKind::InvalidUrlWithReason(url.to_string(), "URL has no address".to_string())
-        })?;
 
-    let new_service = ProxyService {};
+    url.to_socket_addrs()
+        .map_err(|err| Error::from(err.context(ErrorKind::InvalidUrl(url.to_string()))))
+        .and_then(|mut addrs| {
+            addrs.next().ok_or_else(|| {
+                let err = ErrorKind::InvalidUrlWithReason(
+                    url.to_string(),
+                    "URL has no address".to_string(),
+                );
+                Error::from(err)
+            })
+        })
+        .into_future()
+        .and_then(move |addr| {
+            let new_service = ProxyService {};
+            let server = Server::bind(&addr)
+                .serve(new_service)
+                .map_err(|err| Error::from(err.context(ErrorKind::Hyper)));
 
-    let server = Server::bind(&addr).serve(new_service);
+            info!("Listening on {} with 1 thread for {}", url, name);
 
-    Ok(server)
+            server
+        })
 }
