@@ -15,6 +15,10 @@ impl<T: TokenSource> Config<T> {
         Config { host, token, tls }
     }
 
+    pub fn host(&self) -> &Url {
+        &self.host
+    }
+
     pub fn tls(&self) -> &TlsConnector {
         &self.tls
     }

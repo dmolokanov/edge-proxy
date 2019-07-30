@@ -2,8 +2,11 @@ use std::fmt;
 use std::fmt::Display;
 
 use failure::{Backtrace, Context, Fail};
+use http::header::InvalidHeaderValue;
+use http::uri::InvalidUri;
 use hyper::Error as HyperError;
 use native_tls::Error as NativeTlsError;
+use url::ParseError as UrlParseError;
 
 #[derive(Debug)]
 pub struct Error {
@@ -29,6 +32,15 @@ pub enum ErrorKind {
 
     #[fail(display = "A native TLS error occurred.")]
     NativeTls,
+
+    #[fail(display = "Parse error url error")]
+    Parse,
+
+    #[fail(display = "Invalid URI to parse")]
+    Uri,
+
+    #[fail(display = "Invalid HTTP header value")]
+    HeaderValue,
 
     #[fail(display = "Error")]
     Generic,
@@ -82,6 +94,30 @@ impl From<NativeTlsError> for Error {
     fn from(error: NativeTlsError) -> Self {
         Error {
             inner: error.context(ErrorKind::NativeTls),
+        }
+    }
+}
+
+impl From<UrlParseError> for Error {
+    fn from(error: UrlParseError) -> Self {
+        Error {
+            inner: error.context(ErrorKind::Parse),
+        }
+    }
+}
+
+impl From<InvalidUri> for Error {
+    fn from(error: InvalidUri) -> Self {
+        Error {
+            inner: error.context(ErrorKind::Uri),
+        }
+    }
+}
+
+impl From<InvalidHeaderValue> for Error {
+    fn from(error: InvalidHeaderValue) -> Self {
+        Error {
+            inner: error.context(ErrorKind::HeaderValue),
         }
     }
 }
