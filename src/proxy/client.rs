@@ -1,4 +1,5 @@
 use futures::Future;
+use http::header;
 use hyper::client::connect::Connect;
 use hyper::client::HttpConnector;
 use hyper::{Body, Client as HyperClient, Request, Response};
@@ -8,7 +9,7 @@ use crate::proxy::{Config, TokenSource};
 use crate::Error;
 
 #[derive(Clone)]
-pub struct Client<T, S> {
+pub struct Client<T: TokenSource, S> {
     config: Config<T>,
     client: S,
 }
@@ -27,8 +28,17 @@ impl<T: TokenSource> Client<T, HyperHttpClient<HttpsConnector<HttpConnector>>> {
     }
 }
 
-impl<T, S: HttpClient> Client<T, S> {
-    pub fn request(&self, req: Request<Body>) -> impl Future<Item = Response<Body>, Error = Error> {
+impl<T: TokenSource, S: HttpClient> Client<T, S> {
+    pub fn request(
+        &self,
+        mut req: Request<Body>,
+    ) -> impl Future<Item = Response<Body>, Error = Error> {
+        // add authorization header with bearer token to authenticate request
+        if let Some(token) = self.config.token().get() {
+            let token = format!("Bearer {}", token).parse().unwrap(); // todo handle properly
+            req.headers_mut().insert(header::AUTHORIZATION, token);
+        }
+
         self.client.request(req)
     }
 }
@@ -44,7 +54,7 @@ where
     }
 }
 
-pub type ResponseFuture = Box<Future<Item = Response<Body>, Error = Error>>;
+pub type ResponseFuture = Box<dyn Future<Item = Response<Body>, Error = Error>>;
 
 pub trait HttpClient {
     fn request(&self, req: Request<Body>) -> ResponseFuture;

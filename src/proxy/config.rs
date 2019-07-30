@@ -4,7 +4,7 @@ use url::Url;
 use crate::Error;
 
 #[derive(Clone)]
-pub struct Config<T> {
+pub struct Config<T: TokenSource> {
     host: Url,
     token: T,
     tls: TlsConnector,
@@ -18,6 +18,10 @@ impl<T: TokenSource> Config<T> {
     pub fn tls(&self) -> &TlsConnector {
         &self.tls
     }
+
+    pub fn token(&self) -> &impl TokenSource {
+        &self.token
+    }
 }
 
 pub fn get_config(host: Url) -> Result<Config<ValueToken>, Error> {
@@ -28,14 +32,14 @@ pub fn get_config(host: Url) -> Result<Config<ValueToken>, Error> {
 }
 
 pub trait TokenSource {
-    fn get(&self) -> Result<Option<String>, Error>;
+    fn get(&self) -> Option<String>;
 }
 
 #[derive(Clone, Debug)]
 pub struct ValueToken(Option<String>);
 
 impl TokenSource for ValueToken {
-    fn get(&self) -> Result<Option<String>, Error> {
-        Ok(self.0.clone())
+    fn get(&self) -> Option<String> {
+        self.0.clone()
     }
 }
