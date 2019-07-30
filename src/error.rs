@@ -2,6 +2,8 @@ use std::fmt;
 use std::fmt::Display;
 
 use failure::{Backtrace, Context, Fail};
+use hyper::Error as HyperError;
+use native_tls::Error as NativeTlsError;
 
 #[derive(Debug)]
 pub struct Error {
@@ -24,6 +26,9 @@ pub enum ErrorKind {
 
     #[fail(display = "HTTP connection error")]
     Hyper,
+
+    #[fail(display = "A native TLS error occurred.")]
+    NativeTls,
 
     #[fail(display = "Error")]
     Generic,
@@ -61,6 +66,22 @@ impl From<ErrorKind> for Error {
     fn from(kind: ErrorKind) -> Self {
         Error {
             inner: Context::new(kind),
+        }
+    }
+}
+
+impl From<HyperError> for Error {
+    fn from(error: HyperError) -> Self {
+        Error {
+            inner: error.context(ErrorKind::Hyper),
+        }
+    }
+}
+
+impl From<NativeTlsError> for Error {
+    fn from(error: NativeTlsError) -> Self {
+        Error {
+            inner: error.context(ErrorKind::NativeTls),
         }
     }
 }

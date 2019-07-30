@@ -1,5 +1,5 @@
-use edge_proxy::{app, Error, Routine};
 use edge_proxy::logging;
+use edge_proxy::{app, Error, Routine};
 
 fn main() {
     if let Err(e) = run() {

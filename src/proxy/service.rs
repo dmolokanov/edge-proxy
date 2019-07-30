@@ -7,7 +7,9 @@ use hyper::{Body, Request, Response};
 use crate::Error;
 
 #[derive(Clone)]
-pub struct ProxyService;
+pub struct ProxyService {
+    //    client: Client<T, S>,
+}
 
 impl Service for ProxyService {
     type ReqBody = Body;
