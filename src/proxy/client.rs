@@ -60,6 +60,11 @@ where
                 // set a full URL to redirect request to
                 *req.uri_mut() = uri;
 
+                // set host value in request header
+                if let Ok(host) = req.uri().host().unwrap_or_default().parse() {
+                    req.headers_mut().insert(header::HOST, host);
+                }
+
                 // add authorization header with bearer token to authenticate request
                 if let Some(token) = self.config.token().get() {
                     let token = format!("Bearer {}", token).parse()?;
@@ -68,10 +73,7 @@ where
 
                 Ok(req)
             })
-            .map(|req| {
-                info!("Making request to {}", req.uri());
-                self.client.request(req)
-            })
+            .map(|req| self.client.request(req))
             .into_future()
             .flatten()
     }
@@ -84,7 +86,21 @@ where
     C: Connect + Sync + 'static,
 {
     fn request(&self, req: Request<Body>) -> ResponseFuture {
-        Box::new(self.0.request(req).map_err(Error::from))
+        let request = format!("{} {} {:?}", req.method(), req.uri(), req.version());
+
+        let fut = self.0.request(req).map_err(Error::from).map(move |res| {
+            let body_length = res
+                .headers()
+                .get(header::CONTENT_LENGTH)
+                .and_then(|length| length.to_str().ok().map(ToString::to_string))
+                .unwrap_or_else(|| "-".to_string());
+
+            info!("\"{}\" {} {}", request, res.status(), body_length);
+
+            res
+        });
+
+        Box::new(fut)
     }
 }
 

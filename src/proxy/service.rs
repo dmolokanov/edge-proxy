@@ -6,8 +6,7 @@ use futures::{future, Future};
 use hyper::service::{NewService, Service};
 use hyper::{Body, Request, Response};
 
-use crate::proxy::client::HttpClient;
-use crate::proxy::{Client, TokenSource};
+use crate::proxy::{Client, HttpClient, TokenSource};
 use crate::Error;
 
 pub struct ProxyService<T, S>

@@ -8,7 +8,10 @@ use crate::{Error, Settings};
 pub fn init() -> Result<Settings, Error> {
     let matches = create_app().get_matches();
 
-    env_logger::builder().filter_level(LevelFilter::Info).init();
+    env_logger::builder()
+        .filter_level(LevelFilter::Info)
+        .default_format_module_path(false)
+        .init();
 
     info!("Starting proxy server");
 
