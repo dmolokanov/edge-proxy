@@ -4,13 +4,19 @@ use url::Url;
 use crate::Error;
 
 #[derive(Clone)]
-pub struct Config<T: TokenSource> {
+pub struct Config<T>
+where
+    T: TokenSource,
+{
     host: Url,
     token: T,
     tls: TlsConnector,
 }
 
-impl<T: TokenSource> Config<T> {
+impl<T> Config<T>
+where
+    T: TokenSource,
+{
     pub fn new(host: Url, token: T, tls: TlsConnector) -> Self {
         Config { host, token, tls }
     }

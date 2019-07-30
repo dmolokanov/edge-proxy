@@ -4,17 +4,24 @@ use hyper::client::connect::Connect;
 use hyper::client::HttpConnector;
 use hyper::{Body, Client as HyperClient, Request, Response};
 use hyper_tls::HttpsConnector;
+use log::info;
 
 use crate::proxy::{Config, TokenSource};
 use crate::Error;
 
 #[derive(Clone)]
-pub struct Client<T: TokenSource, S> {
+pub struct Client<T, S>
+where
+    T: TokenSource,
+{
     config: Config<T>,
     client: S,
 }
 
-impl<T: TokenSource> Client<T, HyperHttpClient<HttpsConnector<HttpConnector>>> {
+impl<T> Client<T, HyperHttpClient<HttpsConnector<HttpConnector>>>
+where
+    T: TokenSource,
+{
     pub fn new(config: Config<T>) -> Self {
         let mut http = HttpConnector::new(4);
         http.enforce_http(false);
@@ -26,13 +33,20 @@ impl<T: TokenSource> Client<T, HyperHttpClient<HttpsConnector<HttpConnector>>> {
     }
 }
 
-impl<T: TokenSource, S> Client<T, S> {
+impl<T, S> Client<T, S>
+where
+    T: TokenSource,
+{
     pub fn with_client(client: S, config: Config<T>) -> Self {
         Client { config, client }
     }
 }
 
-impl<T: TokenSource, S: HttpClient> Client<T, S> {
+impl<T, S> Client<T, S>
+where
+    T: TokenSource,
+    S: HttpClient,
+{
     pub fn request(
         &self,
         mut req: Request<Body>,
@@ -54,7 +68,10 @@ impl<T: TokenSource, S: HttpClient> Client<T, S> {
 
                 Ok(req)
             })
-            .map(|req| self.client.request(req))
+            .map(|req| {
+                info!("Making request to {}", req.uri());
+                self.client.request(req)
+            })
             .into_future()
             .flatten()
     }
@@ -71,7 +88,7 @@ where
     }
 }
 
-pub type ResponseFuture = Box<dyn Future<Item = Response<Body>, Error = Error>>;
+pub type ResponseFuture = Box<dyn Future<Item = Response<Body>, Error = Error> + Send>;
 
 pub trait HttpClient {
     fn request(&self, req: Request<Body>) -> ResponseFuture;
