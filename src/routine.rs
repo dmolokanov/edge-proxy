@@ -55,7 +55,7 @@ fn start_proxy(settings: &ServiceSettings) -> impl Future<Item = (), Error = Err
         .and_then(move |addr| {
             let config = get_config(backend).unwrap();
             let client = Client::new(config);
-            let new_service = ProxyService {};
+            let new_service = ProxyService::new(client);
             let server = Server::bind(&addr).serve(new_service).map_err(Error::from);
 
             info!("Listening on {} with 1 thread for {}", url, name);

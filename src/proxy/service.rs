@@ -1,17 +1,35 @@
+use std::sync::Arc;
+
 use failure::Compat;
 use futures::future::FutureResult;
 use futures::{future, Future};
 use hyper::service::{NewService, Service};
 use hyper::{Body, Request, Response};
 
+use crate::proxy::Client;
 use crate::Error;
 
-#[derive(Clone)]
-pub struct ProxyService {
-    //    client: Client<T, S>,
+pub struct ProxyService<T, S> {
+    client: Arc<Client<T, S>>,
 }
 
-impl Service for ProxyService {
+impl<T, S> ProxyService<T, S> {
+    pub fn new(client: Client<T, S>) -> Self {
+        ProxyService {
+            client: Arc::new(client),
+        }
+    }
+}
+
+impl<T, S> Clone for ProxyService<T, S> {
+    fn clone(&self) -> Self {
+        ProxyService {
+            client: self.client.clone(),
+        }
+    }
+}
+
+impl<T, S> Service for ProxyService<T, S> {
     type ReqBody = Body;
     type ResBody = Body;
     type Error = Compat<Error>;
@@ -22,7 +40,7 @@ impl Service for ProxyService {
     }
 }
 
-impl NewService for ProxyService {
+impl<T, S> NewService for ProxyService<T, S> {
     type ReqBody = Body;
     type ResBody = Body;
     type Error = Compat<Error>;

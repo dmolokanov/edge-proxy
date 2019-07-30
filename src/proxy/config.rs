@@ -3,6 +3,7 @@ use url::Url;
 
 use crate::Error;
 
+#[derive(Clone)]
 pub struct Config<T> {
     host: Url,
     token: T,
