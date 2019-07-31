@@ -98,7 +98,7 @@ where
                 .and_then(|length| length.to_str().ok().map(ToString::to_string))
                 .unwrap_or_else(|| "-".to_string());
 
-            info!("[O] \"{}\" {} {}", request, res.status(), body_length);
+            info!("\"{}\" {} {}", request, res.status(), body_length);
 
             res
         });

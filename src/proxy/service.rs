@@ -8,7 +8,7 @@ use hyper::{Body, Request, Response};
 use log::debug;
 
 use crate::proxy::{Client, HttpClient, TokenSource};
-use crate::{Error, logging};
+use crate::{logging, Error};
 
 pub struct ProxyService<T, S>
 where
@@ -51,12 +51,19 @@ where
 
     fn call(&mut self, req: Request<Self::ReqBody>) -> Self::Future {
         let request = format!("{} {} {:?}", req.method(), req.uri(), req.version());
-        debug!("[I] {}", request);
+        debug!("Starting request {}", request);
 
-        let fut = self.client.request(req).map_err(|err| {
-            logging::failure(&err);
-            err.compat()
-        });
+        let fut = self
+            .client
+            .request(req)
+            .map_err(|err| {
+                logging::failure(&err);
+                err.compat()
+            })
+            .map(move |res| {
+                debug!("Finished request {}", request);
+                res
+            });
         Box::new(fut)
     }
 }
