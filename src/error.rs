@@ -3,7 +3,6 @@ use std::fmt::Display;
 use std::io::Error as IoError;
 
 use failure::{Backtrace, Context, Fail};
-use http::header::InvalidHeaderValue;
 use http::uri::InvalidUri;
 use hyper::Error as HyperError;
 use native_tls::Error as NativeTlsError;
@@ -40,8 +39,8 @@ pub enum ErrorKind {
     #[fail(display = "Invalid URI to parse")]
     Uri,
 
-    #[fail(display = "Invalid HTTP header value")]
-    HeaderValue,
+    #[fail(display = "Invalid HTTP header value {:?}", _0)]
+    HeaderValue(String),
 
     #[fail(display = "An IO error occurred")]
     Io,
@@ -117,14 +116,6 @@ impl From<InvalidUri> for Error {
     fn from(error: InvalidUri) -> Self {
         Error {
             inner: error.context(ErrorKind::Uri),
-        }
-    }
-}
-
-impl From<InvalidHeaderValue> for Error {
-    fn from(error: InvalidHeaderValue) -> Self {
-        Error {
-            inner: error.context(ErrorKind::HeaderValue),
         }
     }
 }

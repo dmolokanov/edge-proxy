@@ -1,5 +1,6 @@
+use failure::ResultExt;
 use futures::{Future, IntoFuture};
-use http::header;
+use http::{header, HeaderValue};
 use hyper::client::connect::Connect;
 use hyper::client::HttpConnector;
 use hyper::{Body, Client as HyperClient, Request, Response};
@@ -7,7 +8,7 @@ use hyper_tls::HttpsConnector;
 use log::info;
 
 use crate::proxy::{Config, TokenSource};
-use crate::Error;
+use crate::{Error, ErrorKind};
 
 #[derive(Clone)]
 pub struct Client<T, S>
@@ -67,7 +68,9 @@ where
 
                 // add authorization header with bearer token to authenticate request
                 if let Some(token) = self.config.token().get() {
-                    let token = format!("Bearer {}", token).parse()?;
+                    let token = HeaderValue::from_str(format!("Bearer {}", token).as_str())
+                        .context(ErrorKind::HeaderValue("Authorization".to_owned()))?;
+
                     req.headers_mut().insert(header::AUTHORIZATION, token);
                 }
 
@@ -95,7 +98,7 @@ where
                 .and_then(|length| length.to_str().ok().map(ToString::to_string))
                 .unwrap_or_else(|| "-".to_string());
 
-            info!("\"{}\" {} {}", request, res.status(), body_length);
+            info!("[O] \"{}\" {} {}", request, res.status(), body_length);
 
             res
         });

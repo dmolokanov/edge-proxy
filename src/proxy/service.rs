@@ -5,9 +5,10 @@ use futures::future::FutureResult;
 use futures::{future, Future};
 use hyper::service::{NewService, Service};
 use hyper::{Body, Request, Response};
+use log::debug;
 
 use crate::proxy::{Client, HttpClient, TokenSource};
-use crate::Error;
+use crate::{Error, logging};
 
 pub struct ProxyService<T, S>
 where
@@ -49,7 +50,13 @@ where
     type Future = Box<dyn Future<Item = Response<Self::ResBody>, Error = Self::Error> + Send>;
 
     fn call(&mut self, req: Request<Self::ReqBody>) -> Self::Future {
-        let fut = self.client.request(req).map_err(|err| err.compat());
+        let request = format!("{} {} {:?}", req.method(), req.uri(), req.version());
+        debug!("[I] {}", request);
+
+        let fut = self.client.request(req).map_err(|err| {
+            logging::failure(&err);
+            err.compat()
+        });
         Box::new(fut)
     }
 }
