@@ -1,7 +1,10 @@
-use native_tls::TlsConnector;
+use std::fs;
+
+use failure::ResultExt;
+use native_tls::{Certificate, TlsConnector};
 use url::Url;
 
-use crate::Error;
+use crate::{Error, ErrorKind, ServiceSettings};
 
 #[derive(Clone)]
 pub struct Config<T>
@@ -34,11 +37,22 @@ where
     }
 }
 
-pub fn get_config(host: Url) -> Result<Config<ValueToken>, Error> {
-    let token = ValueToken(Some("token".to_owned()));
-    let tls = TlsConnector::new()?;
+pub fn get_config(settings: &ServiceSettings) -> Result<Config<ValueToken>, Error> {
+    let token = fs::read_to_string(settings.token())
+        .context(ErrorKind::File(settings.token().display().to_string()))?;
 
-    Ok(Config::new(host, token, tls))
+    let file = fs::read_to_string(settings.certificate()).context(ErrorKind::File(
+        settings.certificate().display().to_string(),
+    ))?;
+    let cert = Certificate::from_pem(file.as_bytes())?;
+
+    let tls = TlsConnector::builder().add_root_certificate(cert).build()?;
+
+    Ok(Config::new(
+        settings.backend().clone(),
+        ValueToken(Some(token)),
+        tls,
+    ))
 }
 
 pub trait TokenSource {

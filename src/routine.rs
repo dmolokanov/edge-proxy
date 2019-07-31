@@ -34,32 +34,43 @@ impl Routine {
 }
 
 fn start_proxy(settings: &ServiceSettings) -> impl Future<Item = (), Error = Error> {
-    let name = settings.name().to_owned();
-    let url = settings.entrypoint().clone();
-    let backend = settings.backend().clone();
+    let settings = settings.clone();
 
-    info!("Starting proxy server {} {}", name, url);
+    info!(
+        "Starting proxy server {} {}",
+        settings.name(),
+        settings.entrypoint()
+    );
 
-    url.to_socket_addrs()
-        .map_err(|err| Error::from(err.context(ErrorKind::InvalidUrl(url.to_string()))))
+    settings
+        .entrypoint()
+        .to_socket_addrs()
+        .map_err(|err| {
+            Error::from(err.context(ErrorKind::InvalidUrl(settings.entrypoint().to_string())))
+        })
         .and_then(|mut addrs| {
             addrs.next().ok_or_else(|| {
                 let err = ErrorKind::InvalidUrlWithReason(
-                    url.to_string(),
+                    settings.entrypoint().to_string(),
                     "URL has no address".to_string(),
                 );
                 Error::from(err)
             })
         })
-        .into_future()
         .and_then(move |addr| {
-            let config = get_config(backend).unwrap();
+            let config = get_config(&settings)?;
             let client = Client::new(config);
             let new_service = ProxyService::new(client);
             let server = Server::bind(&addr).serve(new_service).map_err(Error::from);
 
-            info!("Listening on {} with 1 thread for {}", url, name);
+            info!(
+                "Listening on {} with 1 thread for {}",
+                settings.entrypoint(),
+                settings.name()
+            );
 
-            server
+            Ok(server)
         })
+        .into_future()
+        .flatten()
 }

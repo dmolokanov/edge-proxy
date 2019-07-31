@@ -1,5 +1,6 @@
 use std::fmt;
 use std::fmt::Display;
+use std::io::Error as IoError;
 
 use failure::{Backtrace, Context, Fail};
 use http::header::InvalidHeaderValue;
@@ -30,7 +31,7 @@ pub enum ErrorKind {
     #[fail(display = "HTTP connection error")]
     Hyper,
 
-    #[fail(display = "A native TLS error occurred.")]
+    #[fail(display = "A native TLS error occurred")]
     NativeTls,
 
     #[fail(display = "Parse error url error")]
@@ -41,6 +42,12 @@ pub enum ErrorKind {
 
     #[fail(display = "Invalid HTTP header value")]
     HeaderValue,
+
+    #[fail(display = "An IO error occurred")]
+    Io,
+
+    #[fail(display = "An IO error occurred {:?}", _0)]
+    File(String),
 
     #[fail(display = "Error")]
     Generic,
@@ -118,6 +125,14 @@ impl From<InvalidHeaderValue> for Error {
     fn from(error: InvalidHeaderValue) -> Self {
         Error {
             inner: error.context(ErrorKind::HeaderValue),
+        }
+    }
+}
+
+impl From<IoError> for Error {
+    fn from(error: IoError) -> Self {
+        Error {
+            inner: error.context(ErrorKind::Io),
         }
     }
 }

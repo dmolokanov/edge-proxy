@@ -67,6 +67,10 @@ impl ServiceSettings {
     pub fn certificate(&self) -> &Path {
         &self.certificate
     }
+
+    pub fn token(&self) -> &Path {
+        Path::new("/var/run/secrets/kubernetes.io/serviceaccount/token")
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
