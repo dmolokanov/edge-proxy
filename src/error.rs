@@ -13,10 +13,13 @@ pub struct Error {
     inner: Context<ErrorKind>,
 }
 
-#[derive(Debug, Fail)]
+#[derive(Debug, Fail, PartialEq)]
 pub enum ErrorKind {
     #[fail(display = "Could not load settings")]
     LoadSettings,
+
+    #[fail(display = "Unsupported url schema {:?}", _0)]
+    UnsupportedSchema(String),
 
     #[fail(display = "Could not initialize tokio runtime")]
     Tokio,

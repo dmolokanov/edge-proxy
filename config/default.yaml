@@ -1,17 +1,4 @@
-services:
-  - name: "management"
-    entrypoint: "http://localhost:3000"
-    backend: "https://iotedged:35000"
-    certificate: "trust_bundle.pem"
-
-  - name: "workload"
-    entrypoint: "http://localhost:3001"
-    backend: "https://iotedged:35001"
-    certificate: "trust_bundle.pem"
-#  - name: "hyper.rs"
-#    entrypoint: "http://localhost:3000"
-#    backend: "https://hyper.rs/"
-#    certificate: "trust_bundle.pem"
+services: []
 
 api:
   entrypoint: "http://localhost:8080"

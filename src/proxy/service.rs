@@ -64,6 +64,7 @@ where
                 debug!("Finished request {}", request);
                 res
             });
+
         Box::new(fut)
     }
 }

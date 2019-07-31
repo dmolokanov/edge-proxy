@@ -25,7 +25,7 @@ impl Settings {
             config.merge(File::from(path))?;
         }
 
-        let settings = config.try_into()?;
+        let settings = convert(config)?;
         Ok(settings)
     }
 
@@ -36,6 +36,26 @@ impl Settings {
     pub fn api(&self) -> &ApiSettings {
         &self.api
     }
+}
+
+fn convert(config: Config) -> Result<Settings, Error> {
+    let settings: Settings = config.try_into()?;
+
+    for settings in settings.services() {
+        if settings.entrypoint().scheme() != "http" {
+            return Err(Error::from(ErrorKind::UnsupportedSchema(
+                settings.entrypoint().as_str().to_owned(),
+            )));
+        }
+
+        if settings.backend().scheme() != "https" {
+            return Err(Error::from(ErrorKind::UnsupportedSchema(
+                settings.backend().as_str().to_owned(),
+            )));
+        }
+    }
+
+    Ok(settings)
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -69,7 +89,7 @@ impl ServiceSettings {
     }
 
     pub fn token(&self) -> &Path {
-        Path::new("/var/run/secrets/kubernetes.io/serviceaccount/token")
+        Path::new("token")
     }
 }
 
@@ -88,5 +108,97 @@ impl ApiSettings {
 impl From<ConfigError> for Error {
     fn from(error: ConfigError) -> Self {
         Error::from(error.context(ErrorKind::LoadSettings))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{ErrorKind, Settings};
+    use std::path::Path;
+    use url::Url;
+
+    #[test]
+    fn it_loads_defaults() {
+        let settings = Settings::new(None).unwrap();
+
+        assert!(settings.services().is_empty());
+        assert_eq!(
+            settings.api().entrypoint(),
+            &Url::parse("http://localhost:8080").unwrap()
+        );
+    }
+
+    #[test]
+    fn it_overrides_defaults() {
+        let settings = Settings::new(Some(Path::new("test/sample.yaml"))).unwrap();
+
+        assert_eq!(settings.services().len(), 2);
+
+        assert_eq!(settings.services()[0].name(), "management");
+        assert_eq!(
+            settings.services()[0].entrypoint(),
+            &Url::parse("http://localhost:3000").unwrap()
+        );
+        assert_eq!(
+            settings.services()[0].backend(),
+            &Url::parse("https://iotedged:35000").unwrap()
+        );
+        assert_eq!(
+            settings.services()[0].certificate(),
+            Path::new("management.pem")
+        );
+
+        assert_eq!(settings.services()[1].name(), "workload");
+        assert_eq!(
+            settings.services()[1].entrypoint(),
+            &Url::parse("http://localhost:3001").unwrap()
+        );
+        assert_eq!(
+            settings.services()[1].backend(),
+            &Url::parse("https://iotedged:35001").unwrap()
+        );
+        assert_eq!(
+            settings.services()[1].certificate(),
+            Path::new("workload.pem")
+        );
+
+        assert_eq!(
+            settings.api().entrypoint(),
+            &Url::parse("http://example:443").unwrap()
+        );
+    }
+
+    #[test]
+    fn it_fails_to_load_invalid_settings() {
+        let err = Settings::new(Some(Path::new("test/invalid.yaml"))).unwrap_err();
+
+        assert_eq!(err.kind(), &ErrorKind::LoadSettings);
+    }
+
+    #[test]
+    fn it_fails_to_load_settings_with_invalid_url() {
+        let err = Settings::new(Some(Path::new("test/invalid.url.yaml"))).unwrap_err();
+
+        assert_eq!(err.kind(), &ErrorKind::LoadSettings);
+    }
+
+    #[test]
+    fn it_allows_only_http_for_entrypoint() {
+        let err = Settings::new(Some(Path::new("test/unsupported.entrypoint.yaml"))).unwrap_err();
+
+        assert_eq!(
+            err.kind(),
+            &ErrorKind::UnsupportedSchema("https://localhost:3000/".to_owned())
+        );
+    }
+
+    #[test]
+    fn it_allows_only_https_for_backend() {
+        let err = Settings::new(Some(Path::new("test/unsupported.backend.yaml"))).unwrap_err();
+
+        assert_eq!(
+            err.kind(),
+            &ErrorKind::UnsupportedSchema("http://iotedged:35000/".to_owned())
+        );
     }
 }
