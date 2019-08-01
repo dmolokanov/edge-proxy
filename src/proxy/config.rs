@@ -71,11 +71,17 @@ impl TokenSource for ValueToken {
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::path::Path;
 
+    use openssl::hash::MessageDigest;
+    use openssl::nid::Nid;
+    use openssl::pkey::PKey;
+    use openssl::rsa::Rsa;
+    use openssl::x509::{X509Name, X509};
     use tempfile::TempDir;
     use url::Url;
 
-    use crate::proxy::get_config;
+    use crate::proxy::{get_config, TokenSource};
     use crate::ServiceSettings;
 
     #[test]
@@ -86,7 +92,7 @@ mod tests {
         fs::write(&token, "token").unwrap();
 
         let cert = dir.path().join("cert.pem");
-        fs::write(&cert, "cert").unwrap();
+        generate_cert(&cert);
 
         let settings = ServiceSettings::new(
             "management".to_owned(),
@@ -96,6 +102,29 @@ mod tests {
             &token,
         );
 
-        let config = get_config(&settings).unwrap();
+        let config = get_config(&settings).expect("Config loading");
+        assert_eq!(config.token().get(), Some("token".to_string()));
+    }
+
+    fn generate_cert(path: &Path) {
+        let rsa = Rsa::generate(2048).unwrap();
+        let pkey = PKey::from_rsa(rsa).unwrap();
+
+        let mut name = X509Name::builder().unwrap();
+        name.append_entry_by_nid(Nid::COMMONNAME, "localhost")
+            .unwrap();
+        let name = name.build();
+
+        let mut builder = X509::builder().unwrap();
+        builder.set_version(2).unwrap();
+        builder.set_subject_name(&name).unwrap();
+        builder.set_issuer_name(&name).unwrap();
+        builder.set_pubkey(&pkey).unwrap();
+        builder.sign(&pkey, MessageDigest::sha256()).unwrap();
+
+        let certificate: X509 = builder.build();
+        let pem = certificate.to_pem().unwrap();
+
+        fs::write(path, pem).unwrap();
     }
 }
