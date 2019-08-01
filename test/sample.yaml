@@ -8,6 +8,7 @@ services:
     entrypoint: "http://localhost:3001"
     backend: "https://iotedged:35001"
     certificate: "workload.pem"
+    token: "token"
 
 api:
   entrypoint: "http://example:443"

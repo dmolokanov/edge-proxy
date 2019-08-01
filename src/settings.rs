@@ -10,6 +10,8 @@ use crate::{Error, ErrorKind};
 
 pub const DEFAULTS: &str = include_str!("../config/default.yaml");
 
+const TOKEN_FILE: &str = "/var/run/secrets/kubernetes.io/serviceaccount/token";
+
 #[derive(Clone, Debug, Deserialize)]
 pub struct Settings {
     services: Vec<ServiceSettings>,
@@ -69,9 +71,32 @@ pub struct ServiceSettings {
     backend: Url,
 
     certificate: PathBuf,
+
+    #[serde(default = "default_token")]
+    token: PathBuf,
+}
+
+fn default_token() -> PathBuf {
+    Path::new(TOKEN_FILE).to_path_buf()
 }
 
 impl ServiceSettings {
+    pub fn new(
+        name: String,
+        entrypoint: Url,
+        backend: Url,
+        certificate: &Path,
+        token: &Path,
+    ) -> Self {
+        ServiceSettings {
+            name,
+            entrypoint,
+            backend,
+            certificate: certificate.to_path_buf(),
+            token: token.to_path_buf(),
+        }
+    }
+
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -89,7 +114,7 @@ impl ServiceSettings {
     }
 
     pub fn token(&self) -> &Path {
-        Path::new("token")
+        &self.token
     }
 }
 
@@ -113,9 +138,12 @@ impl From<ConfigError> for Error {
 
 #[cfg(test)]
 mod tests {
-    use crate::{ErrorKind, Settings};
     use std::path::Path;
+
     use url::Url;
+
+    use crate::settings::TOKEN_FILE;
+    use crate::{ErrorKind, Settings};
 
     #[test]
     fn it_loads_defaults() {
@@ -147,6 +175,7 @@ mod tests {
             settings.services()[0].certificate(),
             Path::new("management.pem")
         );
+        assert_eq!(settings.services()[0].token(), Path::new(TOKEN_FILE));
 
         assert_eq!(settings.services()[1].name(), "workload");
         assert_eq!(
@@ -166,6 +195,7 @@ mod tests {
             settings.api().entrypoint(),
             &Url::parse("http://example:443").unwrap()
         );
+        assert_eq!(settings.services()[1].token(), Path::new("token"));
     }
 
     #[test]

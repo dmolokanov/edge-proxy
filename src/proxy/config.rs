@@ -67,3 +67,35 @@ impl TokenSource for ValueToken {
         self.0.clone()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use tempfile::TempDir;
+    use url::Url;
+
+    use crate::proxy::get_config;
+    use crate::ServiceSettings;
+
+    #[test]
+    fn it_loads_config_from_filesystem() {
+        let dir = TempDir::new().unwrap();
+
+        let token = dir.path().join("token");
+        fs::write(&token, "token").unwrap();
+
+        let cert = dir.path().join("cert.pem");
+        fs::write(&cert, "cert").unwrap();
+
+        let settings = ServiceSettings::new(
+            "management".to_owned(),
+            Url::parse("http://localhost:3000").unwrap(),
+            Url::parse("https://iotedged:30000").unwrap(),
+            &cert,
+            &token,
+        );
+
+        let config = get_config(&settings).unwrap();
+    }
+}
