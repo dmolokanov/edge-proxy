@@ -60,7 +60,7 @@ pub trait TokenSource {
 }
 
 #[derive(Clone, Debug)]
-pub struct ValueToken(Option<String>);
+pub struct ValueToken(pub Option<String>);
 
 impl TokenSource for ValueToken {
     fn get(&self) -> Option<String> {
