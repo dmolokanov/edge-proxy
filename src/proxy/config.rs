@@ -71,22 +71,12 @@ impl TokenSource for ValueToken {
 #[cfg(test)]
 mod tests {
     use std::fs;
-    use std::path::Path;
-
-    use openssl::asn1::Asn1Time;
-    use openssl::hash::MessageDigest;
-    use openssl::nid::Nid;
-    use openssl::pkey::PKey;
-    use openssl::rsa::Rsa;
-    use openssl::x509::extension::{
-        AuthorityKeyIdentifier, BasicConstraints, ExtendedKeyUsage, KeyUsage, SubjectKeyIdentifier,
-    };
-    use openssl::x509::{X509Name, X509};
 
     use tempfile::TempDir;
     use url::Url;
 
     use crate::proxy::{get_config, TokenSource};
+    use crate::tls::CertGenerator;
     use crate::{ErrorKind, ServiceSettings};
 
     #[test]
@@ -97,7 +87,7 @@ mod tests {
         fs::write(&token, "token").unwrap();
 
         let cert = dir.path().join("cert.pem");
-        generate_certificate(&cert);
+        CertGenerator::default().cert(&cert).generate().unwrap();
 
         let settings = ServiceSettings::new(
             "management".to_owned(),
@@ -181,55 +171,4 @@ mod tests {
         assert_eq!(err.kind(), &ErrorKind::NativeTls);
     }
 
-    fn generate_certificate(path: &Path) {
-        let rsa = Rsa::generate(2048).unwrap();
-        let pkey = PKey::from_rsa(rsa).unwrap();
-
-        let mut name = X509Name::builder().unwrap();
-        name.append_entry_by_nid(Nid::COMMONNAME, "iotedged")
-            .unwrap();
-        let name = name.build();
-
-        let mut builder = X509::builder().unwrap();
-        builder.set_version(2).unwrap();
-        builder.set_subject_name(&name).unwrap();
-        builder.set_issuer_name(&name).unwrap();
-        builder
-            .set_not_before(&Asn1Time::days_from_now(0).unwrap())
-            .unwrap();
-        builder
-            .set_not_after(&Asn1Time::days_from_now(365).unwrap())
-            .unwrap();
-        builder.set_pubkey(&pkey).unwrap();
-
-        let basic_constraints = BasicConstraints::new().critical().ca().build().unwrap();
-        builder.append_extension(basic_constraints).unwrap();
-        let key_usage = KeyUsage::new()
-            .digital_signature()
-            .key_encipherment()
-            .build()
-            .unwrap();
-        builder.append_extension(key_usage).unwrap();
-        let ext_key_usage = ExtendedKeyUsage::new()
-            .client_auth()
-            .server_auth()
-            .build()
-            .unwrap();
-        builder.append_extension(ext_key_usage).unwrap();
-        let subject_key_identifier = SubjectKeyIdentifier::new()
-            .build(&builder.x509v3_context(None, None))
-            .unwrap();
-        builder.append_extension(subject_key_identifier).unwrap();
-        let authority_key_identifier = AuthorityKeyIdentifier::new()
-            .keyid(true)
-            .build(&builder.x509v3_context(None, None))
-            .unwrap();
-        builder.append_extension(authority_key_identifier).unwrap();
-
-        builder.sign(&pkey, MessageDigest::sha256()).unwrap();
-
-        let x509 = builder.build();
-
-        fs::write(path, x509.to_pem().unwrap()).unwrap();
-    }
 }
