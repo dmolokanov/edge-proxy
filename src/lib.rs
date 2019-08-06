@@ -4,6 +4,7 @@ pub mod logging;
 mod proxy;
 mod routine;
 mod settings;
+pub mod signal;
 
 pub use error::{Error, ErrorKind};
 pub use routine::Routine;

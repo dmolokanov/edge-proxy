@@ -1,5 +1,5 @@
-use edge_proxy::logging;
 use edge_proxy::{app, Error, Routine};
+use edge_proxy::{logging, signal};
 
 fn main() {
     if let Err(e) = run() {
@@ -12,7 +12,7 @@ fn run() -> Result<(), Error> {
     let settings = app::init()?;
 
     let main = Routine::new(settings);
-    main.run_until()?;
+    main.run_until(signal::shutdown())?;
 
     Ok(())
 }
