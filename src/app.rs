@@ -1,22 +1,16 @@
-use std::env;
 use std::path::Path;
 
 use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg};
-use log::{info, LevelFilter};
+use log::info;
 
-use crate::{Error, Settings};
+use crate::{logging, Error, Settings};
 
 pub fn init() -> Result<Settings, Error> {
-    let matches = create_app().get_matches();
-
-    env_logger::builder()
-        .filter_level(LevelFilter::Info)
-        .default_format_module_path(false)
-        .parse_filters(&env::var("PROXY_LOG").unwrap_or_default())
-        .init();
+    logging::init();
 
     info!("Starting proxy server");
 
+    let matches = create_app().get_matches();
     let config_file = matches
         .value_of_os("config")
         .and_then(|name| {
