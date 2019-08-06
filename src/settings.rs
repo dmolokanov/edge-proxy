@@ -15,7 +15,7 @@ const TOKEN_FILE: &str = "/var/run/secrets/kubernetes.io/serviceaccount/token";
 #[derive(Clone, Debug, Deserialize)]
 pub struct Settings {
     services: Vec<ServiceSettings>,
-    api: ApiSettings,
+    api: Option<ApiSettings>,
 }
 
 impl Settings {
@@ -35,8 +35,8 @@ impl Settings {
         &self.services
     }
 
-    pub fn api(&self) -> &ApiSettings {
-        &self.api
+    pub fn api(&self) -> Option<&ApiSettings> {
+        self.api.as_ref()
     }
 }
 
@@ -70,7 +70,7 @@ pub struct ServiceSettings {
     #[serde(with = "url_serde")]
     backend: Url,
 
-    certificate: PathBuf,
+    certificate: Option<PathBuf>,
 
     #[serde(default = "default_token")]
     token: PathBuf,
@@ -85,14 +85,14 @@ impl ServiceSettings {
         name: String,
         entrypoint: Url,
         backend: Url,
-        certificate: &Path,
+        cert: Option<&Path>,
         token: &Path,
     ) -> Self {
         ServiceSettings {
             name,
             entrypoint,
             backend,
-            certificate: certificate.to_path_buf(),
+            certificate: cert.map(|cert| cert.to_path_buf()),
             token: token.to_path_buf(),
         }
     }
@@ -109,8 +109,8 @@ impl ServiceSettings {
         &self.backend
     }
 
-    pub fn certificate(&self) -> &Path {
-        &self.certificate
+    pub fn certificate(&self) -> Option<&Path> {
+        self.certificate.as_ref().map(|path| path.as_ref())
     }
 
     pub fn token(&self) -> &Path {
@@ -150,17 +150,14 @@ mod tests {
         let settings = Settings::new(None).unwrap();
 
         assert!(settings.services().is_empty());
-        assert_eq!(
-            settings.api().entrypoint(),
-            &Url::parse("http://localhost:8080").unwrap()
-        );
+        assert!(settings.api().is_none())
     }
 
     #[test]
     fn it_overrides_defaults() {
         let settings = Settings::new(Some(Path::new("test/sample.yaml"))).unwrap();
 
-        assert_eq!(settings.services().len(), 2);
+        assert_eq!(settings.services().len(), 3);
 
         assert_eq!(settings.services()[0].name(), "management");
         assert_eq!(
@@ -172,7 +169,7 @@ mod tests {
             &Url::parse("https://iotedged:35000").unwrap()
         );
         assert_eq!(
-            settings.services()[0].certificate(),
+            settings.services()[0].certificate().unwrap(),
             Path::new("management.pem")
         );
         assert_eq!(settings.services()[0].token(), Path::new(TOKEN_FILE));
@@ -187,12 +184,21 @@ mod tests {
             &Url::parse("https://iotedged:35001").unwrap()
         );
         assert_eq!(
-            settings.services()[1].certificate(),
+            settings.services()[1].certificate().unwrap(),
             Path::new("workload.pem")
+        );
+        assert_eq!(settings.services()[2].name(), "no cert provided");
+        assert_eq!(
+            settings.services()[2].entrypoint(),
+            &Url::parse("http://localhost:3002").unwrap()
+        );
+        assert_eq!(
+            settings.services()[2].backend(),
+            &Url::parse("https://iotedged:35002").unwrap()
         );
 
         assert_eq!(
-            settings.api().entrypoint(),
+            settings.api().unwrap().entrypoint(),
             &Url::parse("http://example:443").unwrap()
         );
         assert_eq!(settings.services()[1].token(), Path::new("token"));

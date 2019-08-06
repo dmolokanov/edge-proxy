@@ -41,17 +41,19 @@ pub fn get_config(settings: &ServiceSettings) -> Result<Config<ValueToken>, Erro
     let token = fs::read_to_string(settings.token())
         .context(ErrorKind::File(settings.token().display().to_string()))?;
 
-    let file = fs::read_to_string(settings.certificate()).context(ErrorKind::File(
-        settings.certificate().display().to_string(),
-    ))?;
-    let cert = Certificate::from_pem(file.as_bytes())?;
+    let mut tls = TlsConnector::builder();
 
-    let tls = TlsConnector::builder().add_root_certificate(cert).build()?;
+    if let Some(path) = settings.certificate() {
+        let file = fs::read_to_string(path).context(ErrorKind::File(path.display().to_string()))?;
+        let cert = Certificate::from_pem(file.as_bytes())?;
+
+        tls.add_root_certificate(cert);
+    }
 
     Ok(Config::new(
         settings.backend().clone(),
         ValueToken(Some(token)),
-        tls,
+        tls.build()?,
     ))
 }
 
@@ -93,7 +95,7 @@ mod tests {
             "management".to_owned(),
             Url::parse("http://localhost:3000").unwrap(),
             Url::parse("https://iotedged:30000").unwrap(),
-            &cert,
+            Some(&cert),
             &token,
         );
 
@@ -117,7 +119,7 @@ mod tests {
             "management".to_owned(),
             Url::parse("http://localhost:3000").unwrap(),
             Url::parse("https://iotedged:30000").unwrap(),
-            &cert,
+            Some(&cert),
             &token,
         );
 
@@ -139,7 +141,7 @@ mod tests {
             "management".to_owned(),
             Url::parse("http://localhost:3000").unwrap(),
             Url::parse("https://iotedged:30000").unwrap(),
-            &cert,
+            Some(&cert),
             &token,
         );
 
@@ -162,7 +164,7 @@ mod tests {
             "management".to_owned(),
             Url::parse("http://localhost:3000").unwrap(),
             Url::parse("https://iotedged:30000").unwrap(),
-            &cert,
+            Some(&cert),
             &token,
         );
 

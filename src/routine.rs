@@ -4,7 +4,7 @@ use failure::{Fail, ResultExt};
 use futures::future::join_all;
 use futures::{Future, IntoFuture};
 use hyper::Server;
-use log::{debug, info};
+use log::{debug, info, warn};
 use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
@@ -24,33 +24,39 @@ impl Routine {
     }
 
     pub fn run_until(&self, signal: ShutdownSignal) -> Result<(), Error> {
-        let mut servers: Vec<Box<dyn Future<Item = (), Error = Error> + Send>> = Vec::new();
-        let mut senders = Vec::new();
+        if self.settings.services().is_empty() {
+            warn!("No proxy services specified in config file");
+        } else {
+            let mut servers: Vec<Box<dyn Future<Item = (), Error = Error> + Send>> = Vec::new();
+            let mut senders = Vec::new();
 
-        for settings in self.settings.services().iter() {
+            for settings in self.settings.services().iter() {
+                let (tx, rx) = oneshot::channel();
+                senders.push(tx);
+
+                let proxy = start_proxy(&settings, rx);
+                servers.push(Box::new(proxy));
+            }
+
             let (tx, rx) = oneshot::channel();
             senders.push(tx);
 
-            let proxy = start_proxy(&settings, rx);
-            servers.push(Box::new(proxy));
-        }
-
-        let (tx, rx) = oneshot::channel();
-        senders.push(tx);
-
-        let api = start_api(self.settings.api(), rx);
-        servers.push(Box::new(api));
-
-        let shutdown_signal = signal.map(move |_| {
-            debug!("Shutdown signalled. Starting to shutdown services");
-            for tx in senders {
-                tx.send(()).unwrap_or(())
+            if let Some(settings) = self.settings.api() {
+                let api = start_api(settings, rx);
+                servers.push(Box::new(api));
             }
-        });
 
-        let mut runtime = Runtime::new().context(ErrorKind::Tokio)?;
-        runtime.spawn(shutdown_signal);
-        runtime.block_on(join_all(servers))?;
+            let shutdown_signal = signal.map(move |_| {
+                debug!("Shutdown signalled. Starting to shutdown services");
+                for tx in senders {
+                    tx.send(()).unwrap_or(())
+                }
+            });
+
+            let mut runtime = Runtime::new().context(ErrorKind::Tokio)?;
+            runtime.spawn(shutdown_signal);
+            runtime.block_on(join_all(servers))?;
+        }
 
         info!("Shutdown completed");
 
