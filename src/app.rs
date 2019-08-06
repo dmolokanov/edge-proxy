@@ -1,3 +1,4 @@
+use std::env;
 use std::path::Path;
 
 use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg};
@@ -11,6 +12,7 @@ pub fn init() -> Result<Settings, Error> {
     env_logger::builder()
         .filter_level(LevelFilter::Info)
         .default_format_module_path(false)
+        .parse_filters(&env::var("PROXY_LOG").unwrap_or_default())
         .init();
 
     info!("Starting proxy server");
