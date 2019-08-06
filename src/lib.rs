@@ -1,3 +1,4 @@
+mod api;
 pub mod app;
 mod error;
 pub mod logging;
